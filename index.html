@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PGx Pipeline Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f0f2f5;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --primary: #0f4c81;
+      --green: #15803d;
+      --green-bg: #dcfce7;
+      --amber: #b45309;
+      --amber-bg: #fef3c7;
+      --red: #b91c1c;
+      --red-bg: #fee2e2;
+      --purple: #5b21b6;
+      --purple-bg: #ede9fe;
+      --blue: #1d4ed8;
+      --blue-bg: #dbeafe;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+      --shadow: 0 2px 12px rgba(0,0,0,0.07);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--sans); background: var(--bg); color: var(--text); font-size: 14px; }
+
+    header {
+      background: var(--primary);
+      color: white;
+      padding: 18px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    header h1 { font-size: 21px; font-weight: 700; letter-spacing: -0.3px; }
+    header p { color: #93c5fd; font-size: 12px; margin-top: 3px; }
+
+    main { padding: 24px 32px 48px; max-width: 1360px; margin: 0 auto; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .metric-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 15px 17px;
+      box-shadow: var(--shadow);
+    }
+    .metric-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 7px; }
+    .metric-val { font-family: var(--mono); font-size: 28px; font-weight: 600; line-height: 1; }
+    .metric-sub { font-size: 11px; color: var(--muted); margin-top: 5px; }
+    .bar-wrap { height: 5px; background: #e5e7eb; border-radius: 99px; overflow: hidden; margin-top: 9px; }
+    .bar { height: 100%; background: var(--primary); border-radius: 99px; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 22px;
+      box-shadow: var(--shadow);
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .search-input {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: var(--sans);
+      width: 180px;
+    }
+    .filter-btn {
+      padding: 6px 13px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: white;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: var(--sans);
+      font-weight: 500;
+    }
+    .filter-btn.active        { background: var(--primary); color: white; border-color: var(--primary); }
+    .filter-btn.danger-active { background: var(--red);     color: white; border-color: var(--red); }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 820px; }
+    th {
+      text-align: left;
+      padding: 8px 10px;
+      background: #f8fafc;
+      border-bottom: 2px solid var(--border);
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+    td { padding: 10px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f9fafb; }
+    tr.overdue td  { background: #fff5f5; }
+    tr.overdue:hover td { background: #fee2e2; }
+    tr.warning td  { background: #fffbeb; }
+    tr.warning:hover td { background: #fef3c7; }
+
+    .bid { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--primary); }
+    .date-cell { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .pill.done     { background: var(--green-bg);  color: var(--green); }
+    .pill.none     { background: #f3f4f6;           color: #9ca3af; }
+    .pill.notneed  { background: var(--purple-bg);  color: var(--purple); }
+    .pill.sent     { background: var(--green-bg);   color: var(--green); }
+    .pill.tobsent  { background: var(--blue-bg);    color: var(--blue); }
+
+    .timebar-wrap  { width: 120px; display: inline-block; }
+    .timebar-track { height: 7px; background: #e5e7eb; border-radius: 99px; overflow: hidden; margin-bottom: 3px; }
+    .timebar-fill  { height: 100%; border-radius: 99px; }
+    .timebar-label { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+    .fill-ok   { background: #22c55e; }
+    .fill-warn { background: #f59e0b; }
+    .fill-over { background: #ef4444; }
+    .fill-done { background: #d1d5db; }
+
+    @media (max-width: 1100px) {
+      .summary-grid { grid-template-columns: repeat(3, 1fr); }
+      main, header { padding-left: 16px; padding-right: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>PGx Pipeline Tracker</h1>
+    <p>Data as of 08 Jun 2026</p>
+  </div>
+</header>
+
+<main>
+  <section class="summary-grid" id="summaryGrid"></section>
+
+  <div class="card">
+    <div class="card-title">
+      <span>Sample tracking <span id="rowCount" style="font-size:12px;color:var(--muted);font-weight:400;margin-left:8px"></span></span>
+      <div class="toolbar">
+        <input class="search-input" type="text" id="searchInput" placeholder="Search barcode…" oninput="renderTable()">
+        <button class="filter-btn active" id="fAll"     onclick="setFilter('all')">All</button>
+        <button class="filter-btn"        id="fPending" onclick="setFilter('pending')">Pending bioinformatics</button>
+        <button class="filter-btn"        id="fAlert"   onclick="setFilter('alert')">⚠ Approaching / overdue</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Barcode ID</th>
+            <th>Collection date</th>
+            <th>Sequencing</th>
+            <th>Bioinformatics</th>
+            <th>Confirmatory test</th>
+            <th style="min-width:140px">Time since collection</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+const DEADLINE_DAYS = 21;
+let currentFilter = 'all';
+
+// ── Data — REDCap 08 Jun 2026 (Complete only) + status update 08 Jun 2026 ─────
+// 10033 excluded — Incomplete in REDCap
+const samples = [
+  {barcode_id:10026, collection_date:"2026-05-01", sequencing:"",           bioinformatics:"",           confirmatory:"not needed"},
+  {barcode_id:10027, collection_date:"2026-05-05", sequencing:"2026-05-28", bioinformatics:"2026-06-04", confirmatory:"not needed"},
+  {barcode_id:10028, collection_date:"2026-05-05", sequencing:"2026-05-22", bioinformatics:"2026-05-27", confirmatory:"sent"},
+  {barcode_id:10029, collection_date:"2026-05-05", sequencing:"2026-05-19", bioinformatics:"2026-05-27", confirmatory:"sent"},
+  {barcode_id:10030, collection_date:"2026-05-05", sequencing:"2026-05-22", bioinformatics:"2026-05-27", confirmatory:"sent"},
+  {barcode_id:10031, collection_date:"2026-05-06", sequencing:"2026-05-19", bioinformatics:"2026-05-27", confirmatory:"sent"},
+  {barcode_id:10032, collection_date:"2026-05-06", sequencing:"2026-05-22", bioinformatics:"2026-05-27", confirmatory:"sent"},
+  {barcode_id:10034, collection_date:"2026-05-06", sequencing:"2026-05-19", bioinformatics:"2026-05-27", confirmatory:"sent"},
+  {barcode_id:10035, collection_date:"2026-05-06", sequencing:"2026-05-19", bioinformatics:"2026-05-27", confirmatory:"sent"},
+  {barcode_id:10036, collection_date:"2026-05-06", sequencing:"2026-05-22", bioinformatics:"2026-05-27", confirmatory:"sent"},
+  {barcode_id:10037, collection_date:"2026-05-21", sequencing:"2026-05-28", bioinformatics:"2026-06-08", confirmatory:"to be sent"},
+  {barcode_id:10038, collection_date:"2026-05-21", sequencing:"2026-05-28", bioinformatics:"2026-06-05", confirmatory:"to be sent"},
+  {barcode_id:10039, collection_date:"2026-05-22", sequencing:"2026-05-28", bioinformatics:"2026-06-08", confirmatory:"to be sent"},
+  {barcode_id:10040, collection_date:"2026-05-22", sequencing:"2026-05-28", bioinformatics:"2026-06-08", confirmatory:"to be sent"},
+  {barcode_id:10041, collection_date:"2026-05-22", sequencing:"2026-05-28", bioinformatics:"2026-06-08", confirmatory:"to be sent"},
+  {barcode_id:10042, collection_date:"2026-05-22", sequencing:"2026-05-28", bioinformatics:"2026-06-08", confirmatory:"to be sent"},
+  {barcode_id:10043, collection_date:"2026-05-25", sequencing:"2026-05-28", bioinformatics:"2026-06-08", confirmatory:"to be sent"},
+  {barcode_id:10044, collection_date:"2026-05-25", sequencing:"2026-06-08", bioinformatics:"",           confirmatory:""},
+  {barcode_id:10045, collection_date:"2026-05-26", sequencing:"2026-06-08", bioinformatics:"",           confirmatory:""},
+  {barcode_id:10046, collection_date:"2026-05-26", sequencing:"2026-06-08", bioinformatics:"",           confirmatory:""},
+  {barcode_id:10047, collection_date:"2026-05-27", sequencing:"2026-06-08", bioinformatics:"",           confirmatory:""},
+  {barcode_id:10048, collection_date:"2026-06-01", sequencing:"",           bioinformatics:"",           confirmatory:"sent"},
+  {barcode_id:10049, collection_date:"2026-06-02", sequencing:"",           bioinformatics:"",           confirmatory:""},
+  {barcode_id:10050, collection_date:"2026-06-03", sequencing:"",           bioinformatics:"",           confirmatory:""},
+  {barcode_id:10051, collection_date:"2026-06-05", sequencing:"",           bioinformatics:"",           confirmatory:""},
+  {barcode_id:10052, collection_date:"2026-06-05", sequencing:"",           bioinformatics:"",           confirmatory:""},
+  {barcode_id:10053, collection_date:"2026-06-05", sequencing:"",           bioinformatics:"",           confirmatory:""},
+];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function localDate(dateStr) {
+  if (!dateStr) return null;
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  return isNaN(dt) ? null : dt;
+}
+
+function daysSince(dateStr) {
+  const d = localDate(dateStr);
+  if (!d) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.floor((today - d) / 86400000);
+}
+
+function fmtDate(s) {
+  const d = localDate(s);
+  if (!d) return '—';
+  return d.toLocaleDateString('en-AU', {day:'2-digit', month:'short', year:'numeric'});
+}
+
+function isResolved(conf) {
+  const v = (conf||'').toString().trim().toLowerCase();
+  return v==='sent' || v==='not needed' || v==='n';
+}
+
+// ── Pills ─────────────────────────────────────────────────────────────────────
+function datePill(v) {
+  if (!v || v==='-') return '<span class="pill none">—</span>';
+  return `<span class="pill done">✓ ${fmtDate(v)}</span>`;
+}
+
+function confPill(v) {
+  const val = (v||'').toString().trim().toLowerCase();
+  if (!val || val==='-') return '<span class="pill none">—</span>';
+  if (val==='not needed')  return '<span class="pill notneed">Not needed</span>';
+  if (val==='sent')        return '<span class="pill sent">✓ Sent</span>';
+  if (val==='to be sent')  return '<span class="pill tobsent">To be sent</span>';
+  return `<span class="pill none">${v}</span>`;
+}
+
+// ── Time bar ──────────────────────────────────────────────────────────────────
+function timeBar(sample) {
+  const days = daysSince(sample.collection_date);
+  if (days === null) return '<span style="color:var(--muted);font-size:12px">—</span>';
+  const resolved = isResolved(sample.confirmatory);
+  const pct = Math.min(100, Math.round(days / DEADLINE_DAYS * 100));
+  let fillClass = resolved ? 'fill-done'
+    : days >= DEADLINE_DAYS ? 'fill-over'
+    : days >= 14            ? 'fill-warn'
+    :                         'fill-ok';
+  const label = `${days}d / ${DEADLINE_DAYS}d`;
+  return `<div class="timebar-wrap">
+    <div class="timebar-track"><div class="timebar-fill ${fillClass}" style="width:${pct}%"></div></div>
+    <div class="timebar-label">${label}</div>
+  </div>`;
+}
+
+function rowClass(sample) {
+  if (isResolved(sample.confirmatory)) return '';
+  const days = daysSince(sample.collection_date);
+  if (days === null) return '';
+  if (days >= DEADLINE_DAYS) return 'overdue';
+  if (days >= 14)            return 'warning';
+  return '';
+}
+
+// ── Render table ──────────────────────────────────────────────────────────────
+function setFilter(f) {
+  currentFilter = f;
+  document.getElementById('fAll').className     = 'filter-btn' + (f==='all'?     ' active':'');
+  document.getElementById('fPending').className = 'filter-btn' + (f==='pending'? ' active':'');
+  document.getElementById('fAlert').className   = 'filter-btn' + (f==='alert'?   ' danger-active':'');
+  renderTable();
+}
+
+function renderTable() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const rows = samples.filter(s => {
+    if (q && !String(s.barcode_id).includes(q)) return false;
+    if (currentFilter === 'pending') return !s.bioinformatics;
+    if (currentFilter === 'alert') {
+      if (isResolved(s.confirmatory)) return false;
+      const d = daysSince(s.collection_date);
+      return d !== null && d >= 14;
+    }
+    return true;
+  });
+
+  document.getElementById('rowCount').textContent = `${rows.length} sample${rows.length!==1?'s':''}`;
+  document.getElementById('tableBody').innerHTML = rows.map(s => `
+    <tr class="${rowClass(s)}">
+      <td class="bid">${s.barcode_id}</td>
+      <td class="date-cell">${fmtDate(s.collection_date)}</td>
+      <td>${datePill(s.sequencing)}</td>
+      <td>${datePill(s.bioinformatics)}</td>
+      <td>${confPill(s.confirmatory)}</td>
+      <td>${timeBar(s)}</td>
+    </tr>`).join('');
+
+  renderSummary();
+}
+
+// ── Summary cards ─────────────────────────────────────────────────────────────
+function renderSummary() {
+  const total    = samples.length;
+  const seqDone  = samples.filter(s => s.sequencing).length;
+  const bioDone  = samples.filter(s => s.bioinformatics).length;
+  const toBeSent = samples.filter(s => (s.confirmatory||'').trim().toLowerCase()==='to be sent').length;
+  const confSent = samples.filter(s => (s.confirmatory||'').trim().toLowerCase()==='sent').length;
+  const confNN   = samples.filter(s => (s.confirmatory||'').trim().toLowerCase()==='not needed').length;
+  const overdue  = samples.filter(s => {
+    if (isResolved(s.confirmatory)) return false;
+    const d = daysSince(s.collection_date);
+    return d !== null && d >= DEADLINE_DAYS;
+  }).length;
+
+  const cards = [
+    { label:"Total samples",    val:total,    sub:"Complete REDCap records",             pct:100,                                    danger:false },
+    { label:"Sequenced",        val:seqDone,  sub:`${Math.round(seqDone/total*100)}% of total`,  pct:Math.round(seqDone/total*100),  danger:false },
+    { label:"Bioinformatics",   val:bioDone,  sub:`${Math.round(bioDone/total*100)}% of total`,  pct:Math.round(bioDone/total*100),  danger:false },
+    { label:"To be sent",       val:toBeSent, sub:"ready for DHM",                        pct:Math.round(toBeSent/total*100),         danger:false },
+    { label:"Sent to DHM",      val:confSent, sub:`${confNN} not needed`,                 pct:Math.round((confSent+confNN)/total*100),danger:false },
+    { label:"⚠ Overdue (>21d)", val:overdue,  sub:"pending confirmatory",                 pct:Math.round(overdue/total*100),          danger:overdue>0 },
+  ];
+
+  document.getElementById('summaryGrid').innerHTML = cards.map(c => `
+    <div class="metric-card" style="${c.danger && c.val>0 ? 'border-color:#fca5a5' : ''}">
+      <div class="metric-label">${c.label}</div>
+      <div class="metric-val" style="${c.danger && c.val>0 ? 'color:var(--red)' : ''}">${c.val}</div>
+      <div class="metric-sub">${c.sub}</div>
+      <div class="bar-wrap"><div class="bar" style="width:${c.pct}%;${c.danger && c.val>0 ?'background:var(--red)':''}"></div></div>
+    </div>`).join('');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+setFilter('all');
+</script>
+</body>
+</html>
